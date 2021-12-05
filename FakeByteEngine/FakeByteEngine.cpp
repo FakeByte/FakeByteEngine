@@ -18,7 +18,25 @@
 
 VkInstance instance;
 
+void printDeviceStats(VkPhysicalDevice &device) {
+	VkPhysicalDeviceProperties properties;
+	vkGetPhysicalDeviceProperties(device, &properties);
+
+	std::cout << "Name: " << properties.deviceName << std::endl;
+	uint32_t apiVersion = properties.apiVersion;
+	std::cout << "API Version: " << VK_VERSION_MAJOR(apiVersion) << "." << VK_VERSION_MINOR(apiVersion) << "." << VK_VERSION_PATCH(apiVersion) << std::endl;
+	std::cout << "Driver Version: " << properties.driverVersion << std::endl;
+	std::cout << "Vendor ID: " << properties.vendorID << std::endl;
+	std::cout << "Device ID: " << properties.deviceID << std::endl;
+	std::cout << "Device Type: " << properties.deviceType << std::endl;
+
+	std::cout << std::endl;
+}
+
 int main() {
+
+	// Used to check results of different Vulkan methods
+	VkResult result;
 
 	VkApplicationInfo applicationInfo;
 	applicationInfo.sType				= VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -40,9 +58,23 @@ int main() {
 	instanceInfo.ppEnabledExtensionNames	= NULL;
 
 
-	VkResult result = vkCreateInstance(&instanceInfo, NULL, &instance);
+	result = vkCreateInstance(&instanceInfo, NULL, &instance);
 
 	ASSERT_VULKAN(result);
+
+	// Get amount of graphic cards
+	uint32_t physicalDeviceCount = 0;
+	result = vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, NULL); // if pPhysicalDevices is NULL it returns the amount of physical devices
+	ASSERT_VULKAN(result);
+
+	// Get graphic cards
+	VkPhysicalDevice* physicalDevices = new VkPhysicalDevice[physicalDeviceCount];
+	result = vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, physicalDevices);
+	ASSERT_VULKAN(result);
+
+	for (int i = 0; i < physicalDeviceCount; i++) {
+		printDeviceStats(physicalDevices[i]);
+	}
 
 	return 0;
 }
