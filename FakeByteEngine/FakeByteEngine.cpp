@@ -1,21 +1,49 @@
-// FakeByteEngine.cpp : This file contains the 'main' function. Program execution begins and ends there.
-//
 
 #include "pch.h"
 #include <iostream>
+#include "vulkan/vulkan.h"
 
-int main()
-{
-    std::cout << "Hello World!\n"; 
+#ifdef NDEBUG
+
+#define ASSERT_VULKAN(value)
+
+#else
+
+#define ASSERT_VULKAN(value)\
+		if(value != VK_SUCCESS){\
+			__debugbreak();\
+		}
+
+#endif // NDEBUG
+
+VkInstance instance;
+
+int main() {
+
+	VkApplicationInfo applicationInfo;
+	applicationInfo.sType				= VK_STRUCTURE_TYPE_APPLICATION_INFO;
+	applicationInfo.pNext				= NULL;
+	applicationInfo.pApplicationName	= "Test Application";
+	applicationInfo.applicationVersion	= VK_MAKE_API_VERSION(0, 0, 1, 0);
+	applicationInfo.pEngineName			= "FakeByteEngine";
+	applicationInfo.engineVersion		= VK_MAKE_API_VERSION(0, 0, 1, 0);
+	applicationInfo.apiVersion			= VK_API_VERSION_1_2;
+
+	VkInstanceCreateInfo instanceInfo;
+	instanceInfo.sType						= VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+	instanceInfo.pNext						= NULL;
+	instanceInfo.flags						= 0;
+	instanceInfo.pApplicationInfo			= &applicationInfo;
+	instanceInfo.enabledLayerCount			= 0;
+	instanceInfo.ppEnabledLayerNames		= NULL;
+	instanceInfo.enabledExtensionCount		= 0;
+	instanceInfo.ppEnabledExtensionNames	= NULL;
+
+
+	VkResult result = vkCreateInstance(&instanceInfo, NULL, &instance);
+
+	ASSERT_VULKAN(result);
+
+	return 0;
 }
 
-// Run program: Ctrl + F5 or Debug > Start Without Debugging menu
-// Debug program: F5 or Debug > Start Debugging menu
-
-// Tips for Getting Started: 
-//   1. Use the Solution Explorer window to add/manage files
-//   2. Use the Team Explorer window to connect to source control
-//   3. Use the Output window to see build output and other messages
-//   4. Use the Error List window to view errors
-//   5. Go to Project > Add New Item to create new code files, or Project > Add Existing Item to add existing code files to the project
-//   6. In the future, to open this project again, go to File > Open > Project and select the .sln file
