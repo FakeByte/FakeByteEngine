@@ -17,20 +17,57 @@
 #endif // NDEBUG
 
 VkInstance instance;
+VkDevice device;
 
 void printDeviceStats(VkPhysicalDevice &device) {
 	VkPhysicalDeviceProperties properties;
 	vkGetPhysicalDeviceProperties(device, &properties);
 
-	std::cout << "Name: " << properties.deviceName << std::endl;
 	uint32_t apiVersion = properties.apiVersion;
-	std::cout << "API Version: " << VK_VERSION_MAJOR(apiVersion) << "." << VK_VERSION_MINOR(apiVersion) << "." << VK_VERSION_PATCH(apiVersion) << std::endl;
-	std::cout << "Driver Version: " << properties.driverVersion << std::endl;
-	std::cout << "Vendor ID: " << properties.vendorID << std::endl;
-	std::cout << "Device ID: " << properties.deviceID << std::endl;
-	std::cout << "Device Type: " << properties.deviceType << std::endl;
+
+	std::cout << "Name:                    " << properties.deviceName << std::endl;
+	std::cout << "API Version:             " << VK_VERSION_MAJOR(apiVersion) << "." << VK_VERSION_MINOR(apiVersion) << "." << VK_VERSION_PATCH(apiVersion) << std::endl;
+	std::cout << "Driver Version:          " << properties.driverVersion << std::endl;
+	std::cout << "Vendor ID:               " << properties.vendorID << std::endl;
+	std::cout << "Device ID:               " << properties.deviceID << std::endl;
+	std::cout << "Device Type:             " << properties.deviceType << std::endl;
+	std::cout << "discreteQueuePriorities: " << properties.limits.discreteQueuePriorities << std::endl;
+
+	VkPhysicalDeviceFeatures features;
+	vkGetPhysicalDeviceFeatures(device, &features);
+	std::cout << "Geometry Shader: " << features.geometryShader << std::endl;
+
+	VkPhysicalDeviceMemoryProperties memoryProperties;
+	vkGetPhysicalDeviceMemoryProperties(device, &memoryProperties);
+
+	uint32_t queueFamilyCount = 0;
+	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, NULL);
+
+	VkQueueFamilyProperties *familyProperties = new VkQueueFamilyProperties[queueFamilyCount];
+	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, familyProperties);
+
+	std::cout << "Queue Family Count: " << queueFamilyCount << std::endl;
+
+	for (int i = 0; i < queueFamilyCount; i++) {
+		std::cout << std::endl;
+		std::cout << "Queue Family #" << i << std::endl;
+		std::cout << "VK_QUEUE_GRAPHICS_BIT:       " << ((familyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0) << std::endl;
+		std::cout << "VK_QUEUE_COMPUTE_BIT:        " << ((familyProperties[i].queueFlags & VK_QUEUE_COMPUTE_BIT) != 0) << std::endl;
+		std::cout << "VK_QUEUE_TRANSFER_BIT:       " << ((familyProperties[i].queueFlags & VK_QUEUE_TRANSFER_BIT) != 0) << std::endl;
+		std::cout << "VK_QUEUE_SPARSE_BINDING_BIT: " << ((familyProperties[i].queueFlags & VK_QUEUE_SPARSE_BINDING_BIT) != 0) << std::endl;
+		std::cout << "Queue Count:                 " << familyProperties[i].queueCount << std::endl;
+		std::cout << "Timestamp Valid Bits:        " << familyProperties[i].timestampValidBits << std::endl;
+
+
+		uint32_t width  = familyProperties[i].minImageTransferGranularity.width;
+		uint32_t height = familyProperties[i].minImageTransferGranularity.height;
+		uint32_t depth  = familyProperties[i].minImageTransferGranularity.depth;
+		std::cout << "Min Image Timestamp Granularity: " << width << ", " << height << ", " << depth << std::endl;
+	}
 
 	std::cout << std::endl;
+
+	delete[] familyProperties;
 }
 
 int main() {
@@ -47,18 +84,18 @@ int main() {
 	applicationInfo.engineVersion		= VK_MAKE_API_VERSION(0, 0, 1, 0);
 	applicationInfo.apiVersion			= VK_API_VERSION_1_2;
 
-	VkInstanceCreateInfo instanceInfo;
-	instanceInfo.sType						= VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-	instanceInfo.pNext						= NULL;
-	instanceInfo.flags						= 0;
-	instanceInfo.pApplicationInfo			= &applicationInfo;
-	instanceInfo.enabledLayerCount			= 0;
-	instanceInfo.ppEnabledLayerNames		= NULL;
-	instanceInfo.enabledExtensionCount		= 0;
-	instanceInfo.ppEnabledExtensionNames	= NULL;
+	VkInstanceCreateInfo instanceCreateInfo;
+	instanceCreateInfo.sType						= VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+	instanceCreateInfo.pNext						= NULL;
+	instanceCreateInfo.flags						= 0;
+	instanceCreateInfo.pApplicationInfo			= &applicationInfo;
+	instanceCreateInfo.enabledLayerCount			= 0;
+	instanceCreateInfo.ppEnabledLayerNames		= NULL;
+	instanceCreateInfo.enabledExtensionCount		= 0;
+	instanceCreateInfo.ppEnabledExtensionNames	= NULL;
 
 
-	result = vkCreateInstance(&instanceInfo, NULL, &instance);
+	result = vkCreateInstance(&instanceCreateInfo, NULL, &instance);
 
 	ASSERT_VULKAN(result);
 
@@ -75,6 +112,31 @@ int main() {
 	for (int i = 0; i < physicalDeviceCount; i++) {
 		printDeviceStats(physicalDevices[i]);
 	}
+
+	VkDeviceQueueCreateInfo deviceQueueCreateInfo;
+	deviceQueueCreateInfo.sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+	deviceQueueCreateInfo.pNext            = NULL;
+	deviceQueueCreateInfo.flags            = 0;
+	deviceQueueCreateInfo.queueFamilyIndex = 0;
+	deviceQueueCreateInfo.queueCount       = 4;
+	deviceQueueCreateInfo.pQueuePriorities = NULL;
+
+	VkPhysicalDeviceFeatures usedFeatures = {};
+
+	VkDeviceCreateInfo deviceCreateInfo;
+	deviceCreateInfo.sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	deviceCreateInfo.pNext                   = NULL;
+	deviceCreateInfo.flags                   = 0;
+	deviceCreateInfo.queueCreateInfoCount    = 1;
+	deviceCreateInfo.pQueueCreateInfos       = &deviceQueueCreateInfo;
+	deviceCreateInfo.enabledLayerCount       = 0;
+	deviceCreateInfo.ppEnabledLayerNames     = NULL;
+	deviceCreateInfo.enabledExtensionCount   = 0;
+	deviceCreateInfo.ppEnabledExtensionNames = NULL;
+	deviceCreateInfo.pEnabledFeatures        = &usedFeatures;
+
+	result = vkCreateDevice(physicalDevices[0], &deviceCreateInfo, NULL, &device);
+	ASSERT_VULKAN(result);
 
 	return 0;
 }
