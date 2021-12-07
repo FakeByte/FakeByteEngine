@@ -1,6 +1,7 @@
 
 #include "pch.h"
 #include <iostream>
+#include <vector>
 #include "vulkan/vulkan.h"
 
 #ifdef NDEBUG
@@ -84,14 +85,46 @@ int main() {
 	applicationInfo.engineVersion		= VK_MAKE_API_VERSION(0, 0, 1, 0);
 	applicationInfo.apiVersion			= VK_API_VERSION_1_2;
 
+	uint32_t layerCount = 0;
+	vkEnumerateInstanceLayerProperties(&layerCount, NULL);
+	VkLayerProperties *layers = new VkLayerProperties[layerCount];
+	vkEnumerateInstanceLayerProperties(&layerCount, layers);
+
+	std::cout << "Layer Count: " << layerCount << std::endl;
+	for (int i = 0; i < layerCount; i++) {
+		std::cout << std::endl;
+		std::cout << "Name:                   " << layers[i].layerName << std::endl;
+		std::cout << "Spec Version:           " << layers[i].specVersion << std::endl;
+		std::cout << "Implementation Version: " << layers[i].implementationVersion << std::endl;
+		std::cout << "Descritption:           " << layers[i].description << std::endl;
+	}
+	std::cout << std::endl;
+
+	uint32_t extensionCount = 0;
+	vkEnumerateInstanceExtensionProperties(NULL, &extensionCount, NULL);
+	VkExtensionProperties *extensions = new VkExtensionProperties[extensionCount];
+	vkEnumerateInstanceExtensionProperties(NULL, &extensionCount, extensions);
+
+	std::cout << "Extension Count: " << layerCount << std::endl;
+	for (int i = 0; i < extensionCount; i++) {
+		std::cout << std::endl;
+		std::cout << "Name:         " << extensions[i].extensionName << std::endl;
+		std::cout << "Spec Version: " << extensions[i].specVersion << std::endl;
+	}
+	std::cout << std::endl;
+
+	const std::vector<const char*> validationLayers = {
+		"VK_LAYER_KHRONOS_validation"
+	};
+
 	VkInstanceCreateInfo instanceCreateInfo;
-	instanceCreateInfo.sType						= VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-	instanceCreateInfo.pNext						= NULL;
-	instanceCreateInfo.flags						= 0;
+	instanceCreateInfo.sType					= VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+	instanceCreateInfo.pNext					= NULL;
+	instanceCreateInfo.flags					= 0;
 	instanceCreateInfo.pApplicationInfo			= &applicationInfo;
-	instanceCreateInfo.enabledLayerCount			= 0;
-	instanceCreateInfo.ppEnabledLayerNames		= NULL;
-	instanceCreateInfo.enabledExtensionCount		= 0;
+	instanceCreateInfo.enabledLayerCount		= validationLayers.size();
+	instanceCreateInfo.ppEnabledLayerNames		= validationLayers.data();
+	instanceCreateInfo.enabledExtensionCount	= 0;
 	instanceCreateInfo.ppEnabledExtensionNames	= NULL;
 
 
@@ -113,13 +146,15 @@ int main() {
 		printDeviceStats(physicalDevices[i]);
 	}
 
+	float queuePriorities[] = {1.0, 1.0, 1.0, 1.0};
+
 	VkDeviceQueueCreateInfo deviceQueueCreateInfo;
 	deviceQueueCreateInfo.sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
 	deviceQueueCreateInfo.pNext            = NULL;
 	deviceQueueCreateInfo.flags            = 0;
 	deviceQueueCreateInfo.queueFamilyIndex = 0;
 	deviceQueueCreateInfo.queueCount       = 4;
-	deviceQueueCreateInfo.pQueuePriorities = NULL;
+	deviceQueueCreateInfo.pQueuePriorities = queuePriorities;
 
 	VkPhysicalDeviceFeatures usedFeatures = {};
 
