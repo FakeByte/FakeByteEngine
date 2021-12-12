@@ -2,7 +2,9 @@
 #include "pch.h"
 #include <iostream>
 #include <vector>
-#include "vulkan/vulkan.h"
+
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
 
 #ifdef NDEBUG
 
@@ -19,6 +21,9 @@
 
 VkInstance instance;
 VkDevice device;
+VkSurfaceKHR surface;
+
+GLFWwindow *window;
 
 void printDeviceStats(VkPhysicalDevice &device) {
 	VkPhysicalDeviceProperties properties;
@@ -42,7 +47,7 @@ void printDeviceStats(VkPhysicalDevice &device) {
 	vkGetPhysicalDeviceMemoryProperties(device, &memoryProperties);
 
 	uint32_t queueFamilyCount = 0;
-	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, NULL);
+	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
 
 	VkQueueFamilyProperties *familyProperties = new VkQueueFamilyProperties[queueFamilyCount];
 	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, familyProperties);
@@ -71,22 +76,29 @@ void printDeviceStats(VkPhysicalDevice &device) {
 	delete[] familyProperties;
 }
 
-int main() {
+void startGlfw() {
+	glfwInit();
+	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
+	window = glfwCreateWindow(400, 300, "Vulkan Tutorial", nullptr, nullptr);
+}
+
+void startVulkan() {
 	// Used to check results of different Vulkan methods
 	VkResult result;
 
 	VkApplicationInfo applicationInfo;
-	applicationInfo.sType				= VK_STRUCTURE_TYPE_APPLICATION_INFO;
-	applicationInfo.pNext				= NULL;
-	applicationInfo.pApplicationName	= "Test Application";
-	applicationInfo.applicationVersion	= VK_MAKE_API_VERSION(0, 0, 1, 0);
-	applicationInfo.pEngineName			= "FakeByteEngine";
-	applicationInfo.engineVersion		= VK_MAKE_API_VERSION(0, 0, 1, 0);
-	applicationInfo.apiVersion			= VK_API_VERSION_1_2;
+	applicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+	applicationInfo.pNext = nullptr;
+	applicationInfo.pApplicationName = "Test Application";
+	applicationInfo.applicationVersion = VK_MAKE_API_VERSION(0, 0, 1, 0);
+	applicationInfo.pEngineName = "FakeByteEngine";
+	applicationInfo.engineVersion = VK_MAKE_API_VERSION(0, 0, 1, 0);
+	applicationInfo.apiVersion = VK_API_VERSION_1_2;
 
 	uint32_t layerCount = 0;
-	vkEnumerateInstanceLayerProperties(&layerCount, NULL);
+	vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 	VkLayerProperties *layers = new VkLayerProperties[layerCount];
 	vkEnumerateInstanceLayerProperties(&layerCount, layers);
 
@@ -101,9 +113,9 @@ int main() {
 	std::cout << std::endl;
 
 	uint32_t extensionCount = 0;
-	vkEnumerateInstanceExtensionProperties(NULL, &extensionCount, NULL);
+	vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
 	VkExtensionProperties *extensions = new VkExtensionProperties[extensionCount];
-	vkEnumerateInstanceExtensionProperties(NULL, &extensionCount, extensions);
+	vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions);
 
 	std::cout << "Extension Count: " << layerCount << std::endl;
 	for (int i = 0; i < extensionCount; i++) {
@@ -117,24 +129,33 @@ int main() {
 		"VK_LAYER_KHRONOS_validation"
 	};
 
+	uint32_t glfwExtensionCount = 0;
+	const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+
+	const std::vector<const char*> usedExtenstions = {
+
+	};
+
 	VkInstanceCreateInfo instanceCreateInfo;
-	instanceCreateInfo.sType					= VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-	instanceCreateInfo.pNext					= NULL;
-	instanceCreateInfo.flags					= 0;
-	instanceCreateInfo.pApplicationInfo			= &applicationInfo;
-	instanceCreateInfo.enabledLayerCount		= validationLayers.size();
-	instanceCreateInfo.ppEnabledLayerNames		= validationLayers.data();
-	instanceCreateInfo.enabledExtensionCount	= 0;
-	instanceCreateInfo.ppEnabledExtensionNames	= NULL;
+	instanceCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+	instanceCreateInfo.pNext = nullptr;
+	instanceCreateInfo.flags = 0;
+	instanceCreateInfo.pApplicationInfo = &applicationInfo;
+	instanceCreateInfo.enabledLayerCount = validationLayers.size();
+	instanceCreateInfo.ppEnabledLayerNames = validationLayers.data();
+	instanceCreateInfo.enabledExtensionCount = glfwExtensionCount;
+	instanceCreateInfo.ppEnabledExtensionNames = glfwExtensions;
 
 
-	result = vkCreateInstance(&instanceCreateInfo, NULL, &instance);
+	result = vkCreateInstance(&instanceCreateInfo, nullptr, &instance);
+	ASSERT_VULKAN(result);
 
+	result = glfwCreateWindowSurface(instance, window, nullptr, &surface);
 	ASSERT_VULKAN(result);
 
 	// Get amount of graphic cards
 	uint32_t physicalDeviceCount = 0;
-	result = vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, NULL); // if pPhysicalDevices is NULL it returns the amount of physical devices
+	result = vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, nullptr); // if pPhysicalDevices is nullptr it returns the amount of physical devices
 	ASSERT_VULKAN(result);
 
 	// Get graphic cards
@@ -146,32 +167,68 @@ int main() {
 		printDeviceStats(physicalDevices[i]);
 	}
 
-	float queuePriorities[] = {1.0, 1.0, 1.0, 1.0};
+	float queuePriorities[] = { 1.0, 1.0, 1.0, 1.0 };
 
 	VkDeviceQueueCreateInfo deviceQueueCreateInfo;
-	deviceQueueCreateInfo.sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-	deviceQueueCreateInfo.pNext            = NULL;
-	deviceQueueCreateInfo.flags            = 0;
+	deviceQueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+	deviceQueueCreateInfo.pNext = nullptr;
+	deviceQueueCreateInfo.flags = 0;
 	deviceQueueCreateInfo.queueFamilyIndex = 0;
-	deviceQueueCreateInfo.queueCount       = 4;
+	deviceQueueCreateInfo.queueCount = 1;
 	deviceQueueCreateInfo.pQueuePriorities = queuePriorities;
 
 	VkPhysicalDeviceFeatures usedFeatures = {};
 
 	VkDeviceCreateInfo deviceCreateInfo;
-	deviceCreateInfo.sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-	deviceCreateInfo.pNext                   = NULL;
-	deviceCreateInfo.flags                   = 0;
-	deviceCreateInfo.queueCreateInfoCount    = 1;
-	deviceCreateInfo.pQueueCreateInfos       = &deviceQueueCreateInfo;
-	deviceCreateInfo.enabledLayerCount       = 0;
-	deviceCreateInfo.ppEnabledLayerNames     = NULL;
-	deviceCreateInfo.enabledExtensionCount   = 0;
-	deviceCreateInfo.ppEnabledExtensionNames = NULL;
-	deviceCreateInfo.pEnabledFeatures        = &usedFeatures;
+	deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	deviceCreateInfo.pNext = nullptr;
+	deviceCreateInfo.flags = 0;
+	deviceCreateInfo.queueCreateInfoCount = 1;
+	deviceCreateInfo.pQueueCreateInfos = &deviceQueueCreateInfo;
+	deviceCreateInfo.enabledLayerCount = 0;
+	deviceCreateInfo.ppEnabledLayerNames = nullptr;
+	deviceCreateInfo.enabledExtensionCount = 0;
+	deviceCreateInfo.ppEnabledExtensionNames = nullptr;
+	deviceCreateInfo.pEnabledFeatures = &usedFeatures;
 
-	result = vkCreateDevice(physicalDevices[0], &deviceCreateInfo, NULL, &device);
+	result = vkCreateDevice(physicalDevices[0], &deviceCreateInfo, nullptr, &device);
 	ASSERT_VULKAN(result);
+
+	VkQueue queue;
+	vkGetDeviceQueue(device, 0, 0, &queue);
+
+	delete[] layers;
+	delete[] extensions;
+	delete[] physicalDevices;
+}
+
+void gameLoop() {
+	while (!glfwWindowShouldClose(window)) {
+		glfwPollEvents();
+	}
+}
+
+void shutdownVulkan() {
+	vkDeviceWaitIdle(device);
+
+	vkDestroyDevice(device, nullptr);
+	vkDestroySurfaceKHR(instance, surface, nullptr);
+	vkDestroyInstance(instance, nullptr);
+}
+
+void shutdownGlfw() {
+	glfwDestroyWindow(window);
+}
+
+int main() {
+
+	startGlfw();
+	startVulkan();
+
+	gameLoop();
+
+	shutdownVulkan();
+	shutdownGlfw();
 
 	return 0;
 }
